@@ -16,7 +16,7 @@ import json
 import logging
 from virt.basevm import BaseVM
 from utils.config import CONFIG
-from monitor.mem_usage_info import MemoryUsageExceededInfo
+from monitor.mem_usage_supervise import MemorySupervisor
 
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
 logging.basicConfig(filename="/var/log/pytest.log", level=logging.DEBUG, format=LOG_FORMAT)
@@ -60,15 +60,15 @@ class MicroVM(BaseVM):
             self.add_env("RUSTFLAGS", "-Zsanitizer=address")
         self.add_env("STRATOVIRT_LOG_LEVEL", loglevel)
         if CONFIG.memory_usage_check:
-            self.memory_check = MemoryUsageExceededInfo(0)
+            self.memory_check = MemorySupervisor(0)
             self.memory_check.disable()
-            self.memory_check.start()
-
+            
     def _post_launch(self):
         super(MicroVM, self)._post_launch()
         if CONFIG.memory_usage_check:
             self.memory_check.update_pid(self.pid)
             self.memory_check.enable()
+            self.memory_check.start()
 
     def _post_shutdown(self):
         super(MicroVM, self)._post_shutdown()
