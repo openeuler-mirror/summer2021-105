@@ -41,6 +41,14 @@ class NetworkResource(Singleton):
         self.lock = threading.Lock()
         self.ip_resources = dict()
         self.nets_num = nets_num
+        self.cmd_dict = {
+            "create_dnsmasq" : "ps -ef | grep dnsmasq | grep -w %s",
+            "alloc_ipaddr" :  "dnsmasq --no-hosts --no-resolv --strict-order --bind-interfaces" \
+                              "--interface=%s --except-interface=lo --leasefile-ro " \
+                              "--dhcp-range=%s,%s",
+            "link_tap" : "brctl addif %s %s && ip link set %s up",
+            "unlink_tap" : "ip link set %s down 2>/dev/null; brctl delif %s %s 2>/dev/null;"
+        }
 
     def check_env(self):
         """Check dnsmasq process is running normal"""
@@ -55,22 +63,32 @@ class NetworkResource(Singleton):
                 shell=True, check=False)
 
         # create dnsmasq to alloc ipaddr if it's not running
-        _cmd = "ps -ef | grep dnsmasq | grep -w %s" % self.bridge
+        _cmd = self.cmd_dict["create_dnsmasq"] % self.bridge
         _result = run(_cmd, shell=True, check=True)
-        iprange_1 = "%s.%s.%s" % (self.ip_prefix, str(self.ip_3rd), str(self.dhcp_lower_limit))
-        iprange_2 = "%s.%s.%s" % (self.ip_prefix, str(self.ip_3rd), str(self.dhcp_top_limit))
+        iprange_low = "%s.%s.%s" % (self.ip_prefix, str(self.ip_3rd), str(self.dhcp_lower_limit))
+        iprange_high = "%s.%s.%s" % (self.ip_prefix, str(self.ip_3rd), str(self.dhcp_top_limit))
         if _result.returncode != 0:
-            _cmd = "dnsmasq --no-hosts --no-resolv --strict-order --bind-interfaces" \
-                   "--interface=%s --except-interface=lo --leasefile-ro " \
-                   "--dhcp-range=%s,%s" % (self.bridge, iprange_1, iprange_2)
+            _cmd = self.cmd_dict["alloc_ipaddr"] % (self.bridge, iprange_low, iprange_high)
             _result = run(_cmd, shell=True, check=True)
             return not bool(_result.returncode)
 
         return True
 
-    def generator_tap(self, create_tap=True):
+    def create_tap(self, tapname):
+        """create a tap device to vm, and link tap to bridge"""
+        try:
+            _cmd = "ip tuntap add %s mode tap && " % (tapname) + \
+                    self.cmd_dict["link_tap"] % (self.bridge, tapname, tapname)
+            run(_cmd, shell=True, check=True)
+        except CalledProcessError:
+            _cmd = "tunctl -t %s && " % (tapname) + \
+                    self.cmd_dict["link_tap"] % (self.bridge, tapname, tapname)
+            run(_cmd, shell=True, check=True)
+            NetworkResource.tap_cmd = "tunctl"
+
+    def generator_tap(self, generate_tap=True):
         """
-        Generator a tap device to vm, and link tap to bridge
+        Generator a tap and a mac device
 
         Returns:
             {"name": tapname, "mac": mac}
@@ -78,35 +96,26 @@ class NetworkResource(Singleton):
         self.check_env()
         tapname = generate_random_name()
 
-        if create_tap:
-            try:
-                _cmd = "ip tuntap add %s mode tap && brctl addif %s %s && ip link set %s up" % \
-                       (tapname, self.bridge, tapname, tapname)
-                run(_cmd, shell=True, check=True)
-            except CalledProcessError:
-                _cmd = "tunctl -t %s && brctl addif %s %s && ip link set %s up" % \
-                       (tapname, self.bridge, tapname, tapname)
-                run(_cmd, shell=True, check=True)
-                NetworkResource.tap_cmd = "tunctl"
+        if generate_tap:
+            self.create_tap(tapname)
 
         mac = generate_random_mac()
         return {"name": tapname, "mac": mac}
 
     def add_to_bridge(self, tapname):
         """Add tap device to bridge"""
-        _cmd = "ip link show %s && brctl addif %s %s && ip link set %s up" % \
-               (tapname, self.bridge, tapname, tapname)
+        _cmd = "ip link show %s && " % (tapname) + \
+                self.cmd_dict["link_tap"] % (self.bridge, tapname, tapname)
         run(_cmd, shell=True, check=True)
 
-    def clean_tap(self, tapname):
+    def clean_tap(self, tapname): 
         """Clean tap device from host"""
         if NetworkResource.tap_cmd == "tunctl":
-            _cmd = "ip link set %s down 2>/dev/null; brctl delif %s %s 2>/dev/null;" \
-                   "tunctl -d %s 2>/dev/null" % (tapname, self.bridge, tapname, tapname)
+            _cmd = self.cmd_dict["unlink_tap"] % (tapname, self.bridge, tapname) + \
+                    "tunctl -d %s 2>/dev/null" % (tapname)
         else:
-            _cmd = "ip link set %s down 2>/dev/null; brctl delif %s %s 2>/dev/null;" \
-                   "ip tuntap del %s mode tap 2>/dev/null" % \
-                   (tapname, self.bridge, tapname, tapname)
+            _cmd = self.cmd_dict["unlink_tap"] % (tapname, self.bridge, tapname) + \
+                    "ip tuntap del %s mode tap 2>/dev/null" % (tapname)
         run(_cmd, shell=True, check=False)
         with self.lock:
             if tapname in self.ip_resources:

@@ -72,11 +72,8 @@ class MemorySupervisor(monitor_info.MonitorInfo):
         except CalledProcessError:
             return False
         # delte useless lines which doesn't contain memory related information
-        #logging.debug(pmap_out)
         pmap_out = pmap_out[1:-1]
         pmap_out_delta = []
-        logging.debug(pmap_out)
-        logging.debug(len(pmap_out))
         for line in range(len(pmap_out)):
             pmap_out_i = pmap_out[line].split()
             if int(pmap_out_i[1]) > self.guest_memory_limit:

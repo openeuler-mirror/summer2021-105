@@ -26,6 +26,7 @@ def test_memory_check(microvm):
     """
     test_vm = microvm
     test_vm.launch()
+    test_vm.memory_check.start()
     time.sleep(30)
     exceeded_mes = test_vm.memory_check.get_exceeded_event()
     assert exceeded_mes is not None

@@ -64,11 +64,11 @@ class MicroVM(BaseVM):
             self.memory_check.disable()
             
     def _post_launch(self):
+        """Memory check do not start by default"""
         super(MicroVM, self)._post_launch()
         if CONFIG.memory_usage_check:
             self.memory_check.update_pid(self.pid)
             self.memory_check.enable()
-            self.memory_check.start()
 
     def _post_shutdown(self):
         super(MicroVM, self)._post_shutdown()
