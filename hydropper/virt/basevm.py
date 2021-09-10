@@ -385,7 +385,7 @@ class BaseVM:
         self.serial_cmd(_cmd)
         self.serial_cmd("systemctl restart sshd")
 
-    def add_ip_dhcp(self, model, index):
+    def add_ip_dhcp(self, index):
         """Add client IP through DHCP"""
         self.serial_session.run_func("cmd_output", ("dhclient %s" % self.interfaces[index]))
         _cmd = "ifconfig %s | awk '/inet/ {print $2}' | cut -f2 -d ':' | " \
@@ -395,7 +395,7 @@ class BaseVM:
         if index == 0:
             self.guest_ip = output
 
-    def add_ip_static(self, model, index):
+    def add_ip_static(self, index):
         """Add client IP through static"""
         _cmd = "ip addr show %s | grep inet | awk '{print $2}' | xargs -i -n1 ip addr del {} dev %s" % (
                 self.interfaces[index], self.interfaces[index])
