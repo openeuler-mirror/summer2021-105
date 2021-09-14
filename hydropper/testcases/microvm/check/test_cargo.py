@@ -9,25 +9,19 @@
 # KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
 # NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
-"""Test microvm memory check"""
+"""Test cargo function"""
 
 import logging
 import pytest
-import time
+import utils.utils_cargo
 
 @pytest.mark.acceptance
-def test_memory_check(microvm):
+def test_cargo_interface():
     """
-    Test a normal microvm's function of checking memory:
+    Test functions of cargo:
 
-    1) Launch to test_vm.
-    2) run the function of checking memory for some time.
-    3) print the memory usage exceeded message.
+    1) call the cargo's interface.
+    2) check the correctness of the result.
     """
-    test_vm = microvm
-    test_vm.launch()
-    test_vm.memory_check.start()
-    time.sleep(30)
-    exceeded_mes = test_vm.memory_check.get_exceeded_event()
-    assert exceeded_mes is not None
-    test_vm.shutdown()
+    utils.utils_cargo.cargo_all()
+    assert nothing
