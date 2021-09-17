@@ -21,7 +21,7 @@ def cargo_check(options, path=TEST_PATH):
     It can be helpful for running a faster compile if you only need correctness checks.
     Precondition:Third party packages 'cargo check' need to be installed
     Args:
-        options:a dictionary including the params of command
+        options:a dictionary including the params of the command
         path:execute the command under the path
     """
     option_list = ["quiet", "package", "all", "workspace", "exclude", "jobs",
@@ -35,20 +35,22 @@ def cargo_check(options, path=TEST_PATH):
     for option in options.keys():
         if option in option_list:
             _cmd += " --%s" % (option)
-        if options[option] is not None:
-            _cmd += " %s" % str(options[option]) 
+            if options[option] is not None:
+                _cmd += " %s" % str(options[option]) 
     
     try:
         res = run(_cmd, shell=True, check=False)
     except CallProcessError:
         logging.debug("Found CallProcessError, cargo check failed!")
+    except Exception:
+        logging.debug("Cargo check failed due to the wrong command.")
 
 def cargo_clippy(options, path=TEST_PATH):
     """
     Check the code specification and give the optimization scheme
     Precondition:Third party packages 'cargo clippy' need to be installed
     Args:
-        options:a dictionary including the params of command
+        options:a dictionary including the params of the command
         path:execute the command under the path
     """
     lint_list = ["warn", "allow", "deny", "forbid"]
@@ -65,7 +67,6 @@ def cargo_clippy(options, path=TEST_PATH):
             _cmd += " --%s" % (option)
             if options[option] is not None:
                 _cmd += " %s" % str(options[option])
-                continue
         # To allow or deny a lint 
         elif option in lint_list:
             _cmd += " -- --%s" % (option)
@@ -74,35 +75,66 @@ def cargo_clippy(options, path=TEST_PATH):
         run(_cmd, shell=True, check=False)
     except CallProcessError:
         logging.debug("Found CallProcessError, cargo clippy failed!")
+    except Exception:
+        logging.debug("Cargo clippy failed due to the wrong command.")
 
-def cargo_fmt(all=False, quiet=False, verbose=False, path=TEST_PATH):
+def cargo_fmt(flags, options, path=TEST_PATH):
     """
     Formatting code Automatically
     Precondition:Third party packages 'cargo fmt' need to be installed
     Args:
-        all:format all packages (only usable in workspaces)
-        quiet:whether no output printed to stdout
-        verbose:Use verbose output
+        flags:a dictionary including the FLAGS of the command
+        options:a dictonary including the OPTIONS of the command
         path:execute the command under the path
     """
+    flag_list = ["all", "quiet", "verbose"]
+    option_list = ["manifest-path", "message-format", "package"]
     _cmd = "cd %s && cargo fmt" % (path)
-    if all:
-        _cmd += " --all"
-    if quiet:
-        _cmd += " --quiet"
-    if verbose:
-        _cmd += " --verbose"
+    for flag in flags.keys():
+        if flag in flag_list:
+            _cmd += " --%s" % (flag)
+    for option in options.keys():
+        if option in option_list:
+            _cmd += " --%s" % (option)
+            if options[option] is not None:
+                _cmd += " %s" % str(options[option])
     
     try:
         run(_cmd, shell=True, check=False)
     except CallProcessError:
         logging.debug("Found CallProcessError, cargo fmt failed!")
+    except Exception:
+        logging.debug("Cargo fmt failed due to the wrong command.")
 
-def cargo_test():
+def cargo_test(options, testname, path=TEST_PATH):
     """
     Execute all unit and integration tests and build examples of a local package
+    Args:
+        options:a dictonary including the params of the command
+        testname:if specified, only run tests containing this string in their names
+        path:execute the command under the path
     """
-    
+    option_list = ["quiet", "lib", "bin", "bins", "example", "examples", "test",
+                    "tests", "bench", "benches", "all-targets", "doc", "no-run",
+                    "no-fail-fast", "package", "all", "workspace", "exclude", "jobs",
+                    "release", "profile", "features", "all-features", "no-default-features",
+                    "target", "target-dir", "manifest-path", "ignore-rust-version",
+                    "message-format", "unit-gragh", "future-incompat-report",
+                    "verbose", "color", "frozen", "locked", "offline", "config"]
+    _cmd = "cd %s && cargo test" % (path)
+    for option in options.keys():
+        if option in option_list:
+            _cmd += " --%s" % (option)
+            if options[option] is not None:
+                _cmd += " %s" % str(options[option])
+    _cmd += " %s" % str(testname)
+
+    try:
+        run(_cmd, shell=True, check=False)
+    except CallProcessError:
+        logging.debug("Found CallProcessError, cargo test failed!")
+    except Exception:
+        logging.debug("Cargo test failed due to the wrong command.")
 
 def cargo_all():
     """run all of cargo functions by default"""
