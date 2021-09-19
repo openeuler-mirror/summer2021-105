@@ -22,6 +22,7 @@ def cargo_check(options, path=TEST_PATH):
     Precondition:Third party packages 'cargo check' need to be installed
     Args:
         options:a dictionary including the params of the command
+        (eg.options={"quiet":None, "exclude":"util/src", "workspace":None})
         path:execute the command under the path
     """
     option_list = ["quiet", "package", "all", "workspace", "exclude", "jobs",
@@ -51,6 +52,7 @@ def cargo_clippy(options, path=TEST_PATH):
     Precondition:Third party packages 'cargo clippy' need to be installed
     Args:
         options:a dictionary including the params of the command
+        (eg.options={"quiet":None, "exclude":"util/src", "workspace":None})
         path:execute the command under the path
     """
     lint_list = ["warn", "allow", "deny", "forbid"]
@@ -83,8 +85,10 @@ def cargo_fmt(flags, options, path=TEST_PATH):
     Formatting code Automatically
     Precondition:Third party packages 'cargo fmt' need to be installed
     Args:
-        flags:a dictionary including the FLAGS of the command
+        flags:a list including the FLAGS of the command
+        (eg.flags=["all", "quiet"])
         options:a dictonary including the OPTIONS of the command
+        (eg.options={"manifest-path":"/home/stratovirt"})
         path:execute the command under the path
     """
     flag_list = ["all", "quiet", "verbose"]
@@ -111,7 +115,9 @@ def cargo_test(options, testname, path=TEST_PATH):
     Execute all unit and integration tests and build examples of a local package
     Args:
         options:a dictonary including the params of the command
+        (eg.options={"quiet":None, "exclude":"util/src", "workspace":None})
         testname:if specified, only run tests containing this string in their names
+        (eg.testname="balloon")
         path:execute the command under the path
     """
     option_list = ["quiet", "lib", "bin", "bins", "example", "examples", "test",
@@ -135,13 +141,3 @@ def cargo_test(options, testname, path=TEST_PATH):
         logging.debug("Found CallProcessError, cargo test failed!")
     except Exception:
         logging.debug("Cargo test failed due to the wrong command.")
-
-def cargo_all():
-    """run all of cargo functions by default"""
-    try:
-        cargo_check()
-        cargo_clippy()
-        cargo_fmt()
-        cargo_test()
-    except Exception:
-        logging.warning("Found Exception during running cargo_all()!")

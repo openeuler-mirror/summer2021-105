@@ -22,7 +22,10 @@ def test_cargo_functions():
     2) check the correctness of the result.
     """
     try:
-        utils.utils_cargo.cargo_check()
+        utils.utils_cargo.cargo_check(options={"all":None})
+        utils.utils_cargo.cargo_clippy(path="/")
+        utils.utils_cargo.cargo_fmt(flags=["quiet"])
+        utils.utils_cargo.cargo_test(testname="balloon")
     except Exception:
         logging.debug("Test of cargo functions failed!")
     else:
