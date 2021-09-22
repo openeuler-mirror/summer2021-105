@@ -42,12 +42,12 @@ class NetworkResource(Singleton):
         self.ip_resources = dict()
         self.nets_num = nets_num
         self.cmd_dict = {
-            "create_dnsmasq" : "ps -ef | grep dnsmasq | grep -w %s",
-            "alloc_ipaddr" :  "dnsmasq --no-hosts --no-resolv --strict-order --bind-interfaces" \
+            "create_dnsmasq": "ps -ef | grep dnsmasq | grep -w %s",
+            "alloc_ipaddr":  "dnsmasq --no-hosts --no-resolv --strict-order --bind-interfaces" \
                               "--interface=%s --except-interface=lo --leasefile-ro " \
                               "--dhcp-range=%s,%s",
-            "link_tap" : "brctl addif %s %s && ip link set %s up",
-            "unlink_tap" : "ip link set %s down 2>/dev/null; brctl delif %s %s 2>/dev/null;"
+            "link_tap": "brctl addif %s %s && ip link set %s up",
+            "unlink_tap": "ip link set %s down 2>/dev/null; brctl delif %s %s 2>/dev/null;"
         }
 
     def check_env(self):
