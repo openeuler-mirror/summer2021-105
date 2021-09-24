@@ -41,10 +41,8 @@ def cargo_check(options, path=TEST_PATH):
     
     try:
         res = run(_cmd, shell=True, check=False)
-    except CallProcessError:
+    except CalledProcessError:
         logging.debug("Found CallProcessError, cargo check failed!")
-    except Exception:
-        logging.debug("Cargo check failed due to the wrong command.")
 
 def cargo_clippy(options, path=TEST_PATH):
     """
@@ -75,10 +73,8 @@ def cargo_clippy(options, path=TEST_PATH):
     
     try:
         run(_cmd, shell=True, check=False)
-    except CallProcessError:
+    except CalledProcessError:
         logging.debug("Found CallProcessError, cargo clippy failed!")
-    except Exception:
-        logging.debug("Cargo clippy failed due to the wrong command.")
 
 def cargo_fmt(flags, options, path=TEST_PATH):
     """
@@ -105,10 +101,8 @@ def cargo_fmt(flags, options, path=TEST_PATH):
     
     try:
         run(_cmd, shell=True, check=False)
-    except CallProcessError:
+    except CalledProcessError:
         logging.debug("Found CallProcessError, cargo fmt failed!")
-    except Exception:
-        logging.debug("Cargo fmt failed due to the wrong command.")
 
 def cargo_test(options, testname, path=TEST_PATH):
     """
@@ -137,7 +131,5 @@ def cargo_test(options, testname, path=TEST_PATH):
 
     try:
         run(_cmd, shell=True, check=False)
-    except CallProcessError:
+    except CalledProcessError:
         logging.debug("Found CallProcessError, cargo test failed!")
-    except Exception:
-        logging.debug("Cargo test failed due to the wrong command.")

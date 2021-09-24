@@ -418,9 +418,9 @@ class BaseVM:
         if 'stratovirt' in self.vmtype:
             self.enable_ssh_login()
         if 'dhcp' in model:
-            self.add_ip_dhcp(model, index)
+            self.add_ip_dhcp(index)
         elif 'static' in model:
-            self.add_ip_static(model, index)
+            self.add_ip_static(index)
         LOG.debug("==== check ip addr info in Guest ======\n %s" %
                   self.serial_session.run_func("cmd_output", "ip addr"))
 

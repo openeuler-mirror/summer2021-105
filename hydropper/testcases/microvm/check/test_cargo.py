@@ -13,12 +13,13 @@
 
 import logging
 import utils.utils_cargo
+from subprocess import CalledProcessError
 
 def test_cargo_functions():
     """
     Test functions of cargo:
 
-    1) call the cargo's interface.
+    1) call the cargo's functions.
     2) check the correctness of the result.
     """
     try:
@@ -26,7 +27,7 @@ def test_cargo_functions():
         utils.utils_cargo.cargo_clippy(path="/")
         utils.utils_cargo.cargo_fmt(flags=["quiet"])
         utils.utils_cargo.cargo_test(testname="balloon")
-    except Exception:
+    except CalledProcessError:
         logging.debug("Test of cargo functions failed!")
     else:
         logging.debug("Test of cargo functions succeed!")
