@@ -49,7 +49,7 @@ class BaseVM:
 
     def __init__(self, root_path, name, uuid, bin_path,
                  wrapper=None, args=None, mon_sock=None,
-                 vnetnums=1, vrngnums=0, vsocknums=0, balloon=False,
+                 vnetnums=1, rng=False, bytes_per_sec=0, vsocknums=0, balloon=False,
                  vmtype=CONFIG.vmtype, machine=None, freeze=False,
                  daemon=False, config=None, ipalloc="static", incoming=False,
                  error_test=False, dump_guest_core=True, mem_share=True):
@@ -106,7 +106,8 @@ class BaseVM:
         self.vmid = uuid
         self.vmtype = vmtype
         self.vnetnums = vnetnums
-        self.vrngnums = vrngnums
+        self.rng = rng
+        self.bytes_per_sec = bytes_per_sec
         self.vsock_cid = list()
         self.vsocknums = vsocknums
         self.with_json = False
@@ -118,9 +119,6 @@ class BaseVM:
 
     def __enter__(self):
         return self
-
-    def __del__(self):
-        self.kill()
 
     def get_pid(self):
         """Get pid from ps"""
@@ -378,39 +376,51 @@ class BaseVM:
         """Wait vm for active"""
         self.serial_session = self.wait_for_serial_login()
 
+    def enable_ssh_login(self):
+        """enabling ssh login"""
+        self.serial_session.run_func("cmd_output", 'systemctl stop NetworkManager')
+        self.serial_session.run_func("cmd_output", 'systemctl stop firewalld')
+        # enable ssh login
+        _cmd = "sed -i \"s/^PermitRootLogin.*/PermitRootLogin yes/g\" /etc/ssh/sshd_config"
+        self.serial_cmd(_cmd)
+        self.serial_cmd("systemctl restart sshd")
+
+    def add_ip_dhcp(self, index):
+        """Add client IP through DHCP"""
+        self.serial_session.run_func("cmd_output", ("dhclient %s" % self.interfaces[index]))
+        _cmd = "ifconfig %s | awk '/inet/ {print $2}' | cut -f2 -d ':' | " \
+                "awk 'NR==1 {print $1}'" % self.interfaces[index]
+        output = self.serial_session.run_func("cmd_output", _cmd)
+        self.guest_ips.append(output)
+        if index == 0:
+            self.guest_ip = output
+
+    def add_ip_static(self, index):
+        """Add client IP through static"""
+        _cmd = "ip addr show %s | grep inet | awk '{print $2}' | xargs -i -n1 ip addr del {} dev %s" % (
+                self.interfaces[index], self.interfaces[index])
+        self.serial_console.cmd_output(_cmd)
+        _cmd = "ip link set %s up" % self.interfaces[index]
+        self.serial_console.cmd_output(_cmd)
+        ipinfo = NETWORKS.alloc_ipaddr(self.taps[index]["name"], index=index)
+        _cmd = "ip addr add %s/%s dev %s" % (ipinfo["ipaddr"],
+                                             ipinfo["netmasklen"], self.interfaces[index])
+        self.serial_console.cmd_output(_cmd)
+        _cmd = "ip route add default gw %s" % ipinfo["gateway"]
+        self.serial_console.cmd_output(_cmd)
+        self.guest_ips.append(ipinfo["ipaddr"])
+        if index == 0:
+            self.guest_ip = ipinfo["ipaddr"]
+
     def config_network(self, model='dhcp', index=0):
         """Config vm network"""
         self.interfaces = self.get_interfaces_inner()
         if 'stratovirt' in self.vmtype:
-            self.serial_session.run_func("cmd_output", 'systemctl stop NetworkManager')
-            self.serial_session.run_func("cmd_output", 'systemctl stop firewalld')
-            # enable ssh login
-            _cmd = "sed -i \"s/^PermitRootLogin.*/PermitRootLogin yes/g\" /etc/ssh/sshd_config"
-            self.serial_cmd(_cmd)
-            self.serial_cmd("systemctl restart sshd")
+            self.enable_ssh_login()
         if 'dhcp' in model:
-            self.serial_session.run_func("cmd_output", ("dhclient %s" % self.interfaces[index]))
-            _cmd = "ifconfig %s | awk '/inet/ {print $2}' | cut -f2 -d ':' | " \
-                   "awk 'NR==1 {print $1}'" % self.interfaces[index]
-            output = self.serial_session.run_func("cmd_output", _cmd)
-            self.guest_ips.append(output)
-            if index == 0:
-                self.guest_ip = output
+            self.add_ip_dhcp(index)
         elif 'static' in model:
-            _cmd = "ip addr show %s | grep inet | awk '{print $2}' | xargs -i -n1 ip addr del {} dev %s" % (
-                self.interfaces[index], self.interfaces[index])
-            self.serial_console.cmd_output(_cmd)
-            _cmd = "ip link set %s up" % self.interfaces[index]
-            self.serial_console.cmd_output(_cmd)
-            ipinfo = NETWORKS.alloc_ipaddr(self.taps[index]["name"], index=index)
-            _cmd = "ip addr add %s/%s dev %s" % (ipinfo["ipaddr"],
-                                                 ipinfo["netmasklen"], self.interfaces[index])
-            self.serial_console.cmd_output(_cmd)
-            _cmd = "ip route add default gw %s" % ipinfo["gateway"]
-            self.serial_console.cmd_output(_cmd)
-            self.guest_ips.append(ipinfo["ipaddr"])
-            if index == 0:
-                self.guest_ip = ipinfo["ipaddr"]
+            self.add_ip_static(index)
         LOG.debug("==== check ip addr info in Guest ======\n %s" %
                   self.serial_session.run_func("cmd_output", "ip addr"))
 
@@ -483,10 +493,12 @@ class BaseVM:
                     _tempargs += ",mac=%s" % tapinfo["mac"]
                 args.extend(['-netdev', _tempargs])
 
-        # rng is not supported yet.
-        if self.vrngnums > 0:
-            args.extend(['-object', 'rng-random,id=rng0,filename=/dev/urandom',
-                         '-device', 'virtio-rng,rng=rng0,romfile='])
+        if self.rng:
+            if self.bytes_per_sec == 0:
+                rngcfg = 'random_file=/dev/urandom'
+            else:
+                rngcfg = 'random_file=/dev/random,bytes_per_sec=%s' % self.bytes_per_sec
+            args.extend(['-rng', rngcfg])
 
         if self.vsocknums > 0:
             if VSOCKS.init_vsock():

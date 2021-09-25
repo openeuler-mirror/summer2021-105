@@ -38,15 +38,13 @@ def generate_random_mac():
         hostdev = str(output).split()[-1]
         hostmac = run(r"cat /sys/devices/virtual/net/%s/address" % hostdev,
                       shell=True, capture_output=True, check=False).stdout.strip()
-        first_mac = hostmac.split(":")[0]
-        second_mac, third_mac, fourth_mac = hostmac.split(":")[1:3]
+        first_mac, second_mac, third_mac, fourth_mac = hostmac.split(":")[0:3]
     except (TypeError, KeyError, IndexError):
         first_mac, second_mac, third_mac = "00", "00", "00"
         fourth_mac = hex(random.randint(0x00, 0xff))[2:].zfill(2)
 
-    fifth_mac = hex(random.randint(0x00, 0xff))[2:].zfill(2)
-    mac = [first_mac, second_mac, third_mac, fourth_mac,
-           fifth_mac, hex(random.randint(0x00, 0xff))[2:].zfill(2)]
+    fifth_mac = sixth_mac = hex(random.randint(0x00, 0xff))[2:].zfill(2)
+    mac = [first_mac, second_mac, third_mac, fourth_mac, fifth_mac, sixth_mac]
 
     return ':'.join(mac)
 
@@ -105,12 +103,12 @@ def get_free_port(port_start=1024, port_end=65535, count=1, address='localhost',
     free_ports = []
     port_list = range(port_start, port_end)
     if randomport:
-        randomport.shuffle(list(port_list))
-    for _, port in enumerate(port_list):
+        random.shuffle(list(port_list))
+    for port in port_list:
         if is_port_free(port, address):
             free_ports.append(port)
-        if len(free_ports) >= count:
-            break
+            if len(free_ports) >= count:
+                break
     if free_ports:
         if count == 1:
             return free_ports[0]

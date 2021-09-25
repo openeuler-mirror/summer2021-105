@@ -11,6 +11,7 @@
 # See the Mulan PSL v2 for more details.
 """common monitor info"""
 
+import logging
 import threading
 import time
 from queue import Full
